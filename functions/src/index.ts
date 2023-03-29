@@ -1,33 +1,59 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as express from "express";
-import * as bodyParser from "body-parser";
-import { authMiddleware } from "./util/authMiddleware";
-import defaultRouter from "./routes/defaultRoutes";
-import productRouter from "./routes/productRouter";
+import bodyParser = require("body-parser");
+import { cors } from "./mappings/corsResponseMapper";
+import { Endpoints } from "./models/common/endpoints";
+import { getQueryOptions } from "./routes/routeHelpers";
+import { ProductService } from "./services/productService";
+import { ProductFirestoreRepository } from "./repositories/product/productFirestoreRepository";
+import { FirebaseService } from "./firebase/firebaseService";
+import { HttpStatusCode } from "./constants";
 
-
-admin.initializeApp(functions.config().firebase);
+// Routers
 const middleware = express();
+
+const deps = {
+    service: () => new ProductService(new ProductFirestoreRepository()),
+    auth: () => new FirebaseService()
+}
+
+admin.initializeApp(functions.config().firebase, 'middleware');
+
 middleware.use(bodyParser.json());
 middleware.use(bodyParser.urlencoded({ extended: false }));
 
-// Unauthenticated routes
-middleware.get("/openHealthCheck", (request, response) => {
-	response.status(200).send("The request you just made does not require authentication!");
+middleware.get('/products', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+       return cors(Endpoints.Product, request, response) 
+    }
+    const auth = await deps.auth().isAuthorized(request);
+    if (auth.data === false) {
+        return cors(Endpoints.Product, request, response, auth.statusCode, auth.errorMessage);
+    }
+
+    const queryOptions = getQueryOptions(request); 
+    const result = await deps.service().getPaginated(queryOptions.limit, queryOptions.cursor,  queryOptions.orderBy, queryOptions.filters);
+
+    if (result.statusCode === HttpStatusCode.OK) {
+        return cors(Endpoints.Product, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.Product, request, response, result.statusCode, result.errorMessage);
+}
+)
+
+middleware.post('/products', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+        return cors(Endpoints.Product, request, response)
+    }
+
+    const result = await deps.service().create(request.body);
+
+    if (result.statusCode === HttpStatusCode.Created) {
+        return cors(Endpoints.Product, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.Product, request, response, result.statusCode, result.errorMessage);
 });
-
-middleware.use(authMiddleware);
-
-// Authenticated routes
-
-middleware.get("/authHealthCheck", (request, response) => {
-    response.status(200).send("This request has been authenticated successfully!");
-});
-
-middleware.use('/default', defaultRouter);
-middleware.use('/product', productRouter);
-
 
 
 export const api = functions.https.onRequest(middleware);

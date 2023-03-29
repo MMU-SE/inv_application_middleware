@@ -16,6 +16,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "@firebase/util": "^1.9.3",
+    "@paralleldrive/cuid2": "^2.2.0",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
