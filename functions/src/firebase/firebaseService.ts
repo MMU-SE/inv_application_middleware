@@ -10,7 +10,7 @@ export class FirebaseService {
         // The default Firebase app is created in index.ts
         // It is possible to define other apps that reference a different audience
         // as long as they have a unique name and are created with a service account created in the target project
-        const adminApp = app || admin.apps?.find((app) => app?.name === 'middleware');
+        const adminApp = app || admin.apps?.find((app) => app?.name === 'expressAPI');
         this._app =
             adminApp ||
             admin.initializeApp(functions.config().firebase);

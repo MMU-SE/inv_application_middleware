@@ -15,8 +15,12 @@ const deps = {
 const router = express.Router();
 
 router.get('/products', async (request, response) => {
-    if (request.method === 'OPTIONS') {
+       if (request.method === 'OPTIONS') {
        return cors(Endpoints.Product, request, response) 
+    }
+    const auth = await deps.auth().isAuthorized(request);
+    if (auth.data === false) {
+        return cors(Endpoints.Product, request, response, auth.statusCode, auth.errorMessage);
     }
 
     const queryOptions = getQueryOptions(request); 
@@ -28,6 +32,19 @@ router.get('/products', async (request, response) => {
     return cors(Endpoints.Product, request, response, result.statusCode, result.errorMessage);
 }
 )
+
+router.post('/products', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+        return cors(Endpoints.Product, request, response)
+    }
+
+    const result = await deps.service().create(request.body);
+
+    if (result.statusCode === HttpStatusCode.Created) {
+        return cors(Endpoints.Product, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.Product, request, response, result.statusCode, result.errorMessage);
+});
 
 
 export default router;
