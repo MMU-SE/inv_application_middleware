@@ -14,4 +14,4 @@ expressAPI.use(bodyParser.urlencoded({ extended: false }));
 
 expressAPI.use(productsRoutes);
 
-export const api = functions.https.onRequest(expressAPI);
+export const api = functions.region('europe-west2').https.onRequest(expressAPI);

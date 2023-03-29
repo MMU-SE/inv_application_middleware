@@ -46,5 +46,40 @@ router.post('/products', async (request, response) => {
     return cors(Endpoints.Product, request, response, result.statusCode, result.errorMessage);
 });
 
+router.get('/products/:id', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+        return cors(Endpoints.Product, request, response)
+    }
+
+    const result = await deps.service().getById(request.params.id);
+    if (result.statusCode === HttpStatusCode.OK) {
+        return cors(Endpoints.ProductId, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.ProductId, request, response, result.statusCode, result.errorMessage);
+});
+
+router.put('/products/:id', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+        return cors(Endpoints.Product, request, response)
+    }
+
+    const result = await deps.service().update(request.body, request.params.id);
+    if (result.statusCode === HttpStatusCode.OK) {
+        return cors(Endpoints.ProductId, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.ProductId, request, response, result.statusCode, result.errorMessage);
+});
+
+router.delete('/products/:id', async (request, response) => {
+    if (request.method === 'OPTIONS') {
+        return cors(Endpoints.Product, request, response)
+    }
+
+    const result = await deps.service().delete(request.params.id);
+    if (result.statusCode === HttpStatusCode.OK) {
+        return cors(Endpoints.ProductId, request, response, result.statusCode, result.data);
+    }
+    return cors(Endpoints.ProductId, request, response, result.statusCode, result.errorMessage);
+});
 
 export default router;

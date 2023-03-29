@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
 import { HttpStatusCode } from "../constants";
 import { Product } from "../entities/databaseEntities";
-import { createRequestToEntity, toModel, updateRequestToEntity } from "../mappings/productMapper";
+import { createRequestToEntity, entitytoResponseModel, updateRequestToEntity } from "../mappings/productMapper";
 import { PaginatedResponse, ProductCreateRequest, ProductUpdateRequest, ServiceResponse } from "../models/apiModels";
 import { FilterCondition } from "../repositories/inventoryFirestoreRepository";
 import { ProductFirestoreRepository } from "../repositories/product/productFirestoreRepository";
@@ -27,10 +27,16 @@ export class ProductService extends ServiceBase<Product> {
 
             const entity = createRequestToEntity(request, id);
 
-            const result = await this._productRepo.create(entity);
+            if (entity.statusCode !== HttpStatusCode.OK) {
+                response.errorMessage = entity.errorMessage;
+                response.statusCode = entity.statusCode;
+                return response;
+            }
+
+            const result = await this._productRepo.create(entity.data!);
 
             if (result) {
-                const data = toModel(result);
+                const data = entitytoResponseModel(result);
                 response.data = data;
                 response.statusCode = HttpStatusCode.Created;
                 return response;
@@ -46,7 +52,7 @@ export class ProductService extends ServiceBase<Product> {
         }
     }
 
-    public async update(request: ProductUpdateRequest): Promise<ServiceResponse<Product>> {
+    public async update(request: ProductUpdateRequest, id: string): Promise<ServiceResponse<Product>> {
         const response: ServiceResponse<Product> = {
             data: undefined,
             errorMessage: '',
@@ -54,16 +60,13 @@ export class ProductService extends ServiceBase<Product> {
         };
 
         try {
-            // for validation later, use this to get the existing branch
-            await this._productRepo.getById(request.id);
-
-            const branch = updateRequestToEntity(request, request.id);
-            const result = await this._productRepo.update(branch);
+            const product = updateRequestToEntity(request, id);
+            const result = await this._productRepo.update(product);
 
             if (result) {
-                const updated = await this._productRepo.getById(request.id);
+                const updated = await this._productRepo.getById(id);
                 if (updated) {
-                    response.data = toModel(updated);
+                    response.data = entitytoResponseModel(updated);
                     response.statusCode = HttpStatusCode.OK;
                     return response;
                 }
@@ -117,7 +120,7 @@ export class ProductService extends ServiceBase<Product> {
             if (result) {
                 let product: Product = undefined as unknown as Product;
 
-                    product = toModel(result);
+                    product = entitytoResponseModel(result);
 
                 if (!product) {
                     response.errorMessage = 'Product not found';
@@ -125,7 +128,7 @@ export class ProductService extends ServiceBase<Product> {
                     return response;
                 }
 
-                response.data = toModel(result);
+                response.data = entitytoResponseModel(result);
                 response.statusCode = HttpStatusCode.OK;
                 return response;
             }
@@ -134,7 +137,7 @@ export class ProductService extends ServiceBase<Product> {
             response.statusCode = HttpStatusCode.NotFound;
             return response;
         } catch (error: any) {
-            response.errorMessage = error ? error.message : 'Product not found';
+            response.errorMessage = error ? error.message : 'Internal Server Error';
             response.statusCode = HttpStatusCode.InternalServerError;
             return response;
         }

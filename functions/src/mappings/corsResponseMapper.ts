@@ -25,7 +25,10 @@ export const cors = (endpoint: Endpoints, req: Request, res: Response, statusCod
         if (req.method === 'OPTIONS') {
             switch (endpoint) {
                 case Endpoints.Product:
-                    res.append('Access-Control-Allow-Methods', ['GET', 'OPTIONS']);
+                    res.append('Access-Control-Allow-Methods', ['GET', 'POST', 'PUT', 'OPTIONS']);
+                    break;
+                case Endpoints.ProductId:
+                    res.append('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS']);
                     break;
             }
         }
