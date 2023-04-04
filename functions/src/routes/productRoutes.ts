@@ -6,9 +6,10 @@ import { Endpoints } from "../models/common/endpoints";
 import { getQueryOptions } from "./routeHelpers";
 import { HttpStatusCode } from "../constants";
 import { FirebaseService } from "../firebase/firebaseService";
+import { CategoryFirestoreRepository } from "../repositories/categories/categoryFirestoreRepository";
 
 const deps = {
-    service: () => new ProductService(new ProductFirestoreRepository()),
+    service: () => new ProductService(new ProductFirestoreRepository(), new CategoryFirestoreRepository()),
     auth: () => new FirebaseService()
 }
 

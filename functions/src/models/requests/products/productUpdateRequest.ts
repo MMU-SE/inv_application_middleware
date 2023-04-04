@@ -3,7 +3,7 @@ export interface ProductUpdateRequest {
     sku?: string;
     productName?: string;
     description?: string;
-    category?: string;
+    categoryId?: string;
     quantity?: number;
     unitPrice?: number;
 }

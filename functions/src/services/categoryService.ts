@@ -5,15 +5,18 @@ import { createRequestToEntity, entitytoResponseModel, updateRequestToEntity } f
 import { CategoryCreateRequest, CategoryUpdateRequest, PaginatedResponse, ServiceResponse } from "../models/apiModels";
 import { CategoryFirestoreRepository } from "../repositories/categories/categoryFirestoreRepository";
 import { FilterCondition } from "../repositories/inventoryFirestoreRepository";
+import { ProductFirestoreRepository } from "../repositories/product/productFirestoreRepository";
 import { ServiceBase } from "./baseService";
 
 
 export class CategoryService extends ServiceBase<Category> {
     _categoryRepo: CategoryFirestoreRepository;
+    _productRepo: ProductFirestoreRepository
 
-    constructor(categoryRepository: CategoryFirestoreRepository) {
+    constructor(categoryRepository: CategoryFirestoreRepository, productRepository: ProductFirestoreRepository) {
         super();
         this._categoryRepo= categoryRepository;
+        this._productRepo= productRepository;
     }
 
     public async create(request: CategoryCreateRequest): Promise<ServiceResponse<Category>> {
@@ -94,11 +97,20 @@ export class CategoryService extends ServiceBase<Category> {
         };
 
         try {
-            // await this._productRepo.getById(id);
+
+            const filters: FilterCondition[] = [
+                {key: 'categoryId', value: id } 
+            ]
+
+            const productsWithCategory = await this._productRepo.get(10000, undefined, filters)
+
+            if(productsWithCategory.length > 0) {
+                response.statusCode = HttpStatusCode.Forbidden
+                response.errorMessage = 'Cannot delete category with active products'
+                return response;
+            }
 
             await this._categoryRepo.delete(id);
-
-            // Make sure to delete cascading values from other entities 
 
             response.statusCode = HttpStatusCode.NoContent;
             return response;

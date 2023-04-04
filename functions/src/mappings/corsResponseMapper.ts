@@ -30,6 +30,12 @@ export const cors = (endpoint: Endpoints, req: Request, res: Response, statusCod
                 case Endpoints.ProductId:
                     res.append('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS']);
                     break;
+                case Endpoints.Category:
+                    res.append('Access-Control-Allow-Methods', ['GET', 'POST', 'PUT', 'OPTIONS'])
+                    break;
+                case Endpoints.CategoryId:
+                    res.append('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS'])
+                    break;
             }
         }
 
