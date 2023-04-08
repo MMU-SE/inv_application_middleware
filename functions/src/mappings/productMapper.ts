@@ -1,15 +1,19 @@
 import { HttpStatusCode } from '../constants';
 import * as entities from '../entities/databaseEntities';
+import { Category } from '../entities/databaseEntities';
 import * as models from '../models/apiModels';
 import { validateObject, ValidateSchema, ValidationResponse } from '../services/util';
 
-export const entitytoResponseModel = (product: entities.Product): models.Product => {
+export const entitytoResponseModel = (product: entities.Product, category: Partial<Category> ): models.Product => {
     const result: models.Product = {
         id: product.id,
         sku: product.sku,
         productName: product.productName,
         description: product.description,
-        category: product.category,
+        category: {
+            id: category.id!,
+            name: category.name!,
+        },
         quantity: product.quantity,
         unitPrice: product.unitPrice,
     };
@@ -27,7 +31,7 @@ const schema: ValidateSchema<models.ProductCreateRequest> = {
         sku: 'string',
         productName: 'string',
         description: 'string',
-        category: 'string',
+        categoryId: 'string',
         quantity: 'number',
         unitPrice: 'number',
     };
@@ -45,7 +49,7 @@ const schema: ValidateSchema<models.ProductCreateRequest> = {
         sku: product.sku,
         productName: product.productName,
         description: product.description,
-        category: product.category,
+        categoryId: product.categoryId,
         quantity: product.quantity,
         unitPrice: product.unitPrice,
     };
@@ -56,15 +60,15 @@ const schema: ValidateSchema<models.ProductCreateRequest> = {
 
 }
 
-export const updateRequestToEntity = (product: models.ProductUpdateRequest, id: string): entities.Product => {
+export const updateRequestToEntity = (product: models.ProductUpdateRequest, oldProduct: entities.Product, id: string): entities.Product => {
     const result: entities.Product = {
         id, 
-        sku: product.sku!,
-        productName: product.productName!,
-        description: product.description!,
-        category: product.category!,
-        quantity: product.quantity!,
-        unitPrice: product.unitPrice!,
+        sku: product.sku ?? oldProduct.sku,
+        productName: product.productName ?? oldProduct.productName,
+        description: product.description ?? oldProduct.description,
+        categoryId: product.categoryId ?? oldProduct.categoryId,
+        quantity: product.quantity ?? oldProduct.quantity,
+        unitPrice: product.unitPrice ?? oldProduct.unitPrice,
     };
 
     return result;

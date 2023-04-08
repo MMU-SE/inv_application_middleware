@@ -1,4 +1,4 @@
-import { Request } from "express";
+import { NextFunction, Request, Response } from "express";
 import { FirestoreFilter, FirestoreQueryOptions } from "../repositories/inventoryFirestoreRepository";
 
 export interface QueryFilter {
@@ -50,3 +50,24 @@ export const parseQueryParams = (request: Request): FirestoreQueryOptions => {
         limit: request.query.limit ? parseInt(request.query.limit.toString()) : 10
     };
 };
+
+
+export const corsOptionsMiddleware= (request: Request, response: Response, next: NextFunction) => {
+switch (request.path) {
+                case '/products':
+                    response.setHeader('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS']);
+                    break;
+                case '/products/:id': 
+                    response.setHeader('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS']);
+                    break;
+                case '/categories':
+                    response.setHeader('Access-Control-Allow-Methods', ['GET', 'POST', 'PUT', 'OPTIONS'])
+                    break;
+                case '/categories/:id': 
+                    response.setHeader('Access-Control-Allow-Methods', ['GET', 'DELETE', 'OPTIONS'])
+                    break;
+                default:
+                    response.setHeader('Access-Control-Allow-Methods', ['GET'])
+            }
+            next();
+        }

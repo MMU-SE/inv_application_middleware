@@ -1,22 +1,27 @@
 import { createId } from "@paralleldrive/cuid2";
 import { HttpStatusCode } from "../constants";
-import { Product } from "../entities/databaseEntities";
+import { Category } from "../entities/databaseEntities";
+import { Product as ProductModel } from "../models/apiModels";
 import { createRequestToEntity, entitytoResponseModel, updateRequestToEntity } from "../mappings/productMapper";
 import { PaginatedResponse, ProductCreateRequest, ProductUpdateRequest, ServiceResponse } from "../models/apiModels";
+import { CategoryFirestoreRepository } from "../repositories/categories/categoryFirestoreRepository";
 import { FilterCondition } from "../repositories/inventoryFirestoreRepository";
 import { ProductFirestoreRepository } from "../repositories/product/productFirestoreRepository";
 import { ServiceBase } from "./baseService";
 
-export class ProductService extends ServiceBase<Product> {
+export class ProductService extends ServiceBase<ProductModel> {
     _productRepo: ProductFirestoreRepository; 
+    _categoryRepo: CategoryFirestoreRepository;
 
-    constructor(productRepository: ProductFirestoreRepository) {
+  constructor(productRepository: ProductFirestoreRepository, categoryRepository: CategoryFirestoreRepository) {
         super();
         this._productRepo = productRepository;
+        this._categoryRepo = categoryRepository;
+
     }
 
-    public async create(request: ProductCreateRequest): Promise<ServiceResponse<Product>> {
-        const response: ServiceResponse<Product> = {
+    public async create(request: ProductCreateRequest): Promise<ServiceResponse<ProductModel>> {
+        const response: ServiceResponse<ProductModel> = {
             data: undefined,
             errorMessage: '',
             statusCode: 0
@@ -33,10 +38,23 @@ export class ProductService extends ServiceBase<Product> {
                 return response;
             }
 
+            const category = await this._categoryRepo.getById(request.categoryId);
+
+            if (!category) {
+                response.errorMessage = 'Category not found';
+                response.statusCode = HttpStatusCode.NotFound;
+                return response;
+            }
+
+            const responseCategory: Partial<Category> = {
+                id: category.id,
+                name: category.name,
+            }
+
             const result = await this._productRepo.create(entity.data!);
 
             if (result) {
-                const data = entitytoResponseModel(result);
+                const data = entitytoResponseModel(result, responseCategory);
                 response.data = data;
                 response.statusCode = HttpStatusCode.Created;
                 return response;
@@ -52,21 +70,44 @@ export class ProductService extends ServiceBase<Product> {
         }
     }
 
-    public async update(request: ProductUpdateRequest, id: string): Promise<ServiceResponse<Product>> {
-        const response: ServiceResponse<Product> = {
+    public async update(request: ProductUpdateRequest, id: string): Promise<ServiceResponse<ProductModel>> {
+        const response: ServiceResponse<ProductModel> = {
             data: undefined,
             errorMessage: '',
             statusCode: 0
         };
 
         try {
-            const product = updateRequestToEntity(request, id);
+            
+            const oldProduct = await this._productRepo.getById(id)
+
+            if(!oldProduct) {
+                response.statusCode = HttpStatusCode.NotFound
+                response.errorMessage = 'Product not found'
+                return response;
+            }
+
+            const product = updateRequestToEntity(request, oldProduct, id);
+
+             const category = await this._categoryRepo.getById(product.categoryId);
+
+            if (!category) {
+                response.errorMessage = 'Category not found';
+                response.statusCode = HttpStatusCode.NotFound;
+                return response;
+            }
+
+            const responseCategory: Partial<Category> = {
+                id: category.id,
+                name: category.name,
+            }
+
             const result = await this._productRepo.update(product);
 
             if (result) {
                 const updated = await this._productRepo.getById(id);
                 if (updated) {
-                    response.data = entitytoResponseModel(updated);
+                    response.data = entitytoResponseModel(updated, responseCategory);
                     response.statusCode = HttpStatusCode.OK;
                     return response;
                 }
@@ -85,8 +126,8 @@ export class ProductService extends ServiceBase<Product> {
         }
     }
 
-    public async delete(id: string): Promise<ServiceResponse<Product>> {
-        const response: ServiceResponse<Product> = {
+    public async delete(id: string): Promise<ServiceResponse<ProductModel>> {
+        const response: ServiceResponse<ProductModel> = {
             data: undefined,
             errorMessage: '',
             statusCode: 0
@@ -108,8 +149,8 @@ export class ProductService extends ServiceBase<Product> {
         }
     }
 
-    public async getById(id: string): Promise<ServiceResponse<Product>> {
-        const response: ServiceResponse<Product> = {
+    public async getById(id: string): Promise<ServiceResponse<ProductModel>> {
+        const response: ServiceResponse<ProductModel> = {
             data: undefined,
             errorMessage: '',
             statusCode: 0
@@ -117,18 +158,33 @@ export class ProductService extends ServiceBase<Product> {
 
         try {
             const result = await this._productRepo.getById(id);
-            if (result) {
-                let product: Product = undefined as unknown as Product;
 
-                    product = entitytoResponseModel(result);
+            const category = await this._categoryRepo.getById(result?.categoryId ?? '');
+
+            if (!category) {
+                response.errorMessage = 'Category not found';
+                response.statusCode = HttpStatusCode.InternalServerError;
+                return response;
+            }
+
+            const responseCategory: Partial<Category> = {
+                id: category.id,
+                name: category.name,
+            }
+
+                
+            if (result) {
+                let product: ProductModel = undefined as unknown as ProductModel;
+
+                    product = entitytoResponseModel(result, responseCategory);
 
                 if (!product) {
-                    response.errorMessage = 'Product not found';
-                    response.statusCode = HttpStatusCode.NotFound;
+                    response.errorMessage = 'Mapping Error';
+                    response.statusCode = HttpStatusCode.InternalServerError;
                     return response;
                 }
 
-                response.data = entitytoResponseModel(result);
+                response.data = product;
                 response.statusCode = HttpStatusCode.OK;
                 return response;
             }
@@ -143,8 +199,8 @@ export class ProductService extends ServiceBase<Product> {
         }
     }
 
-    public async getPaginated( limit: number, cursor?: string, orderBy?: string, filters?: FilterCondition[]): Promise<ServiceResponse<PaginatedResponse<Product>>> {
-        const response: ServiceResponse<PaginatedResponse<Product>> = {
+    public async getPaginated( limit: number, cursor?: string, orderBy?: string, filters?: FilterCondition[]): Promise<ServiceResponse<PaginatedResponse<ProductModel>>> {
+        const response: ServiceResponse<PaginatedResponse<ProductModel>> = {
             data: undefined,
             errorMessage: '',
             statusCode: 0
@@ -154,16 +210,32 @@ export class ProductService extends ServiceBase<Product> {
         const result = await this._productRepo.get(limit, cursor, filters, orderBy);
 
         if (all && result && result.length > 0) {
-                const limitResults = result.map((branch) => {
-                        return branch;
-                })
+                const limitResults = await Promise.all(
+                    result.map(async (product) => {
+                        const category = await this._categoryRepo.getById(product.categoryId);
+                            const responseProduct: ProductModel = {
+                                id: product.id,
+                                sku: product.sku,
+                                productName: product.productName,
+                                description: product.description,
+                                quantity: product.quantity,
+                                unitPrice: product.unitPrice,
+                                category: {
+                                    id: category?.id ?? 'none',
+                                    name: category?.name ?? 'none',
+                                }
+                        }
+                            return responseProduct;
+                    })
+            )
 
-            const paginatedResponse: PaginatedResponse<Product> = {
+            const paginatedResponse: PaginatedResponse<ProductModel> = {
                 total: all.length,
                 limit: limit,
                 cursor: limitResults[limitResults.length - 1].id,
                 data: limitResults
             };
+
             response.data = paginatedResponse;
             response.statusCode = HttpStatusCode.OK;
             return response;
