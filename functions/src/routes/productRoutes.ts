@@ -73,4 +73,20 @@ router.delete('/products/:id', async (request, response) => {
     return
 });
 
+router.post('/products/checkin', async (request, response) => {
+    const data=request.body;
+
+    data.products.forEach(async (p)=>{
+        const result = await deps.service().create(p);
+
+        if (result.statusCode != HttpStatusCode.Created) {
+            response.status(result.statusCode).send(result.errorMessage)
+            return
+        }
+    })
+    
+    response.status(HttpStatusCode.Created).send(request.body)
+    return
+});
+
 export default router;
