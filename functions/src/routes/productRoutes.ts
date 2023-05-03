@@ -76,17 +76,24 @@ router.delete('/products/:id', async (request, response) => {
 router.post('/products/checkin', async (request, response) => {
     const data=request.body;
 
-    data.products.forEach(async (p)=>{
-        const result = await deps.service().create(p);
-
-        if (result.statusCode != HttpStatusCode.Created) {
-            response.status(result.statusCode).send(result.errorMessage)
-            return
-        }
-    })
+    try {
+        const results = await Promise.all(
+          data.products.map((p: any) => deps.service().create(p))
+        );
     
-    response.status(HttpStatusCode.Created).send(request.body)
-    return
+        const errorResult = results.find(
+          (result: any) => result.statusCode !== HttpStatusCode.Created
+        );
+    
+        if (errorResult) {
+          response.status(errorResult.statusCode).send(errorResult.errorMessage);
+          return;
+        }
+    
+        response.status(HttpStatusCode.Created).send(request.body);
+      } catch (error) {
+        response.status(HttpStatusCode.InternalServerError).send({ error: error });
+      }
 });
 
 export default router;
